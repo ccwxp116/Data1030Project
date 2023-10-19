@@ -46,9 +46,9 @@ data.columns
 Y = data['stars']
 X = data.drop(columns = ['stars', 'publishedDate', 'publishedDate_clean'], axis = 1)
 
-## fix float problem in X
-print(X.columns)
-
+## count NA
+missing_values = X.isna().sum()
+48232/len(X)
 
 ###########
 ### EDA ###
@@ -83,7 +83,7 @@ ax.axvline(mean_not_kindle_unlimited, color='blue', linestyle='--', label=f'Mean
 ax.axvline(mean_kindle_unlimited, color='orange', linestyle='--', label=f'Mean (Kindle Unlimited): {mean_kindle_unlimited:.2f}')
 
 # Set labels and title
-ax.set_xlabel('Stars (Ratings) by Kindle Unlimited')
+ax.set_xlabel('Rating [Stars] by Kindle Unlimited')
 ax.set_ylabel('Number of Books')
 ax.set_title('Distribution of Kindle Book Ratings by Kindle Unlimited')
 
@@ -137,6 +137,7 @@ plt.xlabel('category')
 ## engineer soldBy: only leave publisher with 1000+ obs, change other publishers to 'other', add changed column 'soldBy_2' to data
 ## 'soldBy_2' has 13 values: the top 12 publishers and other
 soldBy_clean = data['soldBy'].value_counts()[:12].index
+data['soldBy_2'] = data['soldBy'].apply(lambda x: 'other' if x not in soldBy_clean else x)
 soldBy_order = soldBy_clean.tolist() + ['other']
 
 data['soldBy_2'] = pd.Categorical(data['soldBy_2'], categories=soldBy_order, ordered=True)
