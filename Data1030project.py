@@ -11,6 +11,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, OneHotEncoder, OrdinalEncoder, MinMaxScaler 
+from sklearn.svm import SVC
 
 
 ###################
@@ -36,7 +37,8 @@ data['publishedDate_clean'] = data['publishedDate'].apply(lambda x:
 origin = data['publishedDate_clean'].min()
 # data['publishedDate_num'] = pd.to_numeric(data['publishedDate_clean'].apply(lambda x: (x - origin).days if not pd.isna(x) else x), errors='coerce') 
 data['published_month'] = data['publishedDate_clean'].dt.month
-data['published_year'] = data['publishedDate_clean'].dt.year.astype(int)
+data['published_year'] = data['publishedDate_clean'].dt.year
+data['published_year'] = data['published_year'][data['published_year'].notna()].astype(int)
 data['published_days'] = data['publishedDate_clean'].dt.day_name()
 
 data.columns
@@ -251,23 +253,37 @@ plt.show()
 ##################
 
 # split test and other set
-
-X['published_year'] = X['published_year'].dropna().astype(int)
 stars_class = round(Y)
 X_other, X_test, Y_other, Y_test = train_test_split(X, Y, test_size=0.2, random_state = 42, stratify=stars_class)
 print(f"  Test:{X_test.index}")
-unique_years = X['published_year'].unique()
-unique_years.sort()
-unique_years = unique_years[:90].tolist()
+
+plt.hist(Y_test, bins= 32, color = '#146eb4')
+plt.ylabel('Number of Books')
+plt.xlabel('Reviews [Stars]')
+plt.title('Y_test distribution')
+
+plt.hist(Y_other, bins= 32, color = '#FF9900')
+plt.ylabel('Number of Books')
+plt.xlabel('Reviews [Stars]')
+plt.title('Y_other distribution')
 
 
+# replace nan with impossible value for ordinal encoder
+X_other['published_year'] = X_other['published_year'].replace(np.NaN, 111111)
+X_other['published_month'] = X_other['published_month'].replace(np.NaN, 111111)
+X_other['published_days'] = X_other['published_days'].replace(np.NaN, '111111')
+unique_year = X_other['published_year'].unique()
+unique_year.sort()
+unique_month = X_other['published_month'].unique()
+unique_month.sort()
+unique_days = X_other['published_days'].unique()
 
 
 # encoder
-ordinal_ftrs = ['published_month', 'published_days'] 
-ordinal_cats = [[1,2,3,4,5,6,7,8,9,10,11,12], ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday','Saturday','Sunday']] 
+ordinal_ftrs = ['published_month', 'published_days', 'published_year'] 
+ordinal_cats = [[1,2,3,4,5,6,7,8,9,10,11,12, 111111], ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday','Saturday','Sunday', '111111'], unique_year] 
 onehot_ftrs = ['soldBy', 'category_name']
-std_ftrs = ['reviews', 'price', 'publishedDate_num']
+std_ftrs = ['reviews', 'price']
 
 preprocessor = ColumnTransformer(
     transformers=[
@@ -276,17 +292,16 @@ preprocessor = ColumnTransformer(
         ('std', StandardScaler(), std_ftrs)])
 
 clf = Pipeline(steps=[('preprocessor', preprocessor)])
-clf.set_output(transform='pandas')
 
 # stratified K fold
-X_try = X_other.replace('NaTType', float('nan'))
+X_other = X_other.replace('NaTType', float('nan'))
 star_class_other = pd.Series(round(Y_other))
 star_class_other.value_counts()
 skf = StratifiedKFold(n_splits = 5, shuffle = True, random_state = 42)
 
-for i, (i_train,i_val) in enumerate(skf.split(X_try, star_class_other)):
-    X_train, Y_train = X_try.iloc[i_train], Y_other.iloc[i_train]
-    X_val, Y_val = X_try.iloc[i_val], Y_other.iloc[i_val]
+for i, (i_train,i_val) in enumerate(skf.split(X_other, star_class_other)):
+    X_train, Y_train = X_other.iloc[i_train], Y_other.iloc[i_train]
+    X_val, Y_val = X_other.iloc[i_val], Y_other.iloc[i_val]
     
     X_train_binary = X_train[['isBestSeller', 'isEditorsPick', 'isGoodReadsChoice', 'isKindleUnlimited']]
     X_train_binary.reset_index(drop=True, inplace=True)
@@ -305,6 +320,8 @@ for i, (i_train,i_val) in enumerate(skf.split(X_try, star_class_other)):
 
 feature_names = preprocessor.get_feature_names_out()
 
+X_train_prep_full.shape
+X_val_prep_full.shape
 
 ## engineer soldBy: only leave publisher with 1000+ obs, change other publishers to 'other', add changed column 'soldBy_2' to data
 ## 'soldBy_2' has 13 values: the top 12 publishers and other
