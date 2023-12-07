@@ -12,6 +12,8 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, OneHotEncoder, OrdinalEncoder, MinMaxScaler 
 from sklearn.svm import SVC
+import matplotlib.pyplot as plt
+from sklearn.impute import SimpleImputer
 
 
 ###################
